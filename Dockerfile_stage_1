@@ -1,0 +1,29 @@
+FROM scratch
+
+ADD alpine-minirootfs-3.21.3-aarch64.tar /
+
+# Zdefiniowanie wersji aplikacji jako zmiennej ARG
+ARG VERSION
+ENV APP_VERSION=${VERSION}
+
+# Tworzenie katalogu roboczego w kontenerze
+WORKDIR /usr/app
+
+# Instalacja Node.js oraz npm
+RUN apk add --no-cache nodejs npm
+
+# Kopiowanie zależności do kontenera
+COPY ./package.json ./
+
+# Instalacja zależności
+RUN npm install
+
+# Kopiowanie pliku aplikacji
+COPY ./index.js ./
+
+# Informacja o porcie wewnętrznym kontenera, 
+# na ktorym "nasluchuje" aplikacja
+EXPOSE 8080
+
+# Domyśle polecenie przy starcie kontenera 
+CMD ["npm", "start"]

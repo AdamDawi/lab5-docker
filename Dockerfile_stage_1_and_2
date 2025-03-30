@@ -1,0 +1,50 @@
+# --- STAGE 1 ---
+FROM scratch AS build-stage
+
+# Dodanie mini-rootfs Alpine do obrazu
+ADD alpine-minirootfs-3.21.3-aarch64.tar /
+
+# Tworzenie katalogu roboczego
+WORKDIR /usr/app
+
+# Instalacja menedżera pakietów, Node.js i npm
+RUN apk add --no-cache nodejs npm
+
+# Kopiowanie zależności do kontenera
+COPY ./package.json ./
+
+# Instalacja zależności
+RUN npm install
+
+# Kopiowanie kodu aplikacji
+COPY ./index.js ./
+
+# --- STAGE 2 ---
+FROM nginx:latest
+
+# Instalacja narzędzi
+RUN apt update && apt install -y curl nodejs npm
+
+# Ustawienie katalogu roboczego
+WORKDIR /usr/app
+
+# Kopiowanie pliku aplikacji
+COPY --from=build-stage /usr/app /usr/app
+
+# Kopiowanie konfiguracji Nginx
+COPY default.conf /etc/nginx/conf.d/default.conf
+
+# Informacja o portach wewnętrznym kontenera, 
+# na ktorym "nasluchuje" aplikacja
+EXPOSE 80 8080
+
+ARG VERSION
+
+ENV APP_VERSION=${VERSION}
+
+# Dodanie HEALTHCHECK do sprawdzania dostępności serwisów
+HEALTHCHECK --interval=10s --timeout=1s \
+  CMD curl -f http://localhost:80/ || exit 1
+
+# Uruchomienie aplikacji Node.js oraz serwera Nginx
+CMD ["sh", "-c", "node /usr/app/index.js & nginx -g 'daemon off;'"]
